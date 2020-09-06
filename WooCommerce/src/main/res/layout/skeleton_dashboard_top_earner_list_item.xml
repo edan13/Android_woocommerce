@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="@dimen/major_100">
+
+    <View
+        android:layout_width="@dimen/skeleton_list_item_icon_200"
+        android:layout_height="@dimen/skeleton_list_item_icon_200"
+        android:layout_gravity="center_vertical"
+        android:background="@drawable/skeleton_background"/>
+
+    <View
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="center_vertical"
+        android:layout_marginEnd="@dimen/major_75"
+        android:layout_marginStart="@dimen/major_75"
+        android:layout_weight="5"
+        android:background="@drawable/skeleton_background"/>
+
+    <View
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="center_vertical"
+        android:layout_weight="1"
+        android:background="@drawable/skeleton_background"/>
+
+</LinearLayout>

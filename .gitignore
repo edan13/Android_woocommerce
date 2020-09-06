@@ -1,0 +1,100 @@
+# OS X generated file
+.DS_Store
+
+# Built application files
+*.apk
+*.ap_
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+artifacts/
+
+# Gradle files
+.gradle/
+build/
+*/build/
+gradle.properties
+
+# Crash Logging Configuration
+fabric.properties
+sentry.properties
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# IntelliJ/Android Studio project files
+*.iml
+*.ipr
+*.iws
+/.idea/*
+
+# IntelliJ/Android Studio exceptions
+!/.idea/vcs.xml
+!/.idea/codeStyles/
+!/.idea/fileTemplates/
+!/.idea/inspectionProfiles/
+!/.idea/scopes/
+!/.idea/codeStyleSettings.xml
+!/.idea/encodings.xml
+!/.idea/copyright/
+!/.idea/compiler.xml
+# Enforce plugins
+!/.idea/externalDependencies.xml
+# Checkstyle configuration
+!/.idea/checkstyle-idea.xml
+
+# Log Files
+*.log
+
+# Backup Files
+*.bak
+
+# Android Studio Navigation editor temp files
+.navigation/
+
+# Android Studio captures folder
+captures/
+
+# Android Studio backup files
+projectFilesBackup/
+
+# Keystore files
+*.jks
+
+# External native build folder generated in Android Studio 2.2 and later
+.externalNativeBuild
+
+# Google Services (e.g. APIs or Firebase)
+google-services.json
+
+# Silver Searcher ignore file
+.agignore
+
+# VSCode
+.settings
+.classpath
+.project
+.vscode/
+
+# Fastlane
+fastlane/README.md
+fastlane/report.xml
+fastlane/.env
+google-upload-credentials.json
+
+# Ruby Dependencies
+/vendor
+
+# Sentry
+sentry.properties
+
+# Markdown Extensions
+.markdownlint.json

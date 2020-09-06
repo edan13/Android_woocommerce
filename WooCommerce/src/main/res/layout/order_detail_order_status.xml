@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_height="wrap_content"
+    android:layout_width="match_parent">
+
+    <LinearLayout
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:orientation="vertical">
+
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/orderStatus_dateAndOrderNum"
+            style="@style/Woo.TextView.Caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/minor_50"
+            tools:text="Nov 3, 2020 \u2022 #120"/>
+
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/orderStatus_name"
+            style="@style/Woo.TextView.Headline6"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/minor_00"
+            tools:text="George Carlin"/>
+
+        <LinearLayout
+            android:id="@+id/orderStatus_edit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:focusable="true"
+            android:clickable="true"
+            android:paddingEnd="@dimen/major_100"
+            android:paddingStart="@dimen/major_100"
+            android:paddingBottom="@dimen/major_75"
+            android:contentDescription="@string/orderdetail_change_order_status"
+            android:background="?attr/selectableItemBackground">
+
+            <com.woocommerce.android.widgets.FlowLayout
+                android:id="@+id/orderStatus_orderTags"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:contentDescription="@string/orderstatus_contentDesc"/>
+
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:focusable="false"
+                android:clickable="false"
+                android:importantForAccessibility="no"
+                android:background="@drawable/ic_edit_pencil"/>
+        </LinearLayout>
+    </LinearLayout>
+</merge>

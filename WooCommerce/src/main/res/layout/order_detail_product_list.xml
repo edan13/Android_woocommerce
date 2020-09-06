@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <com.google.android.material.textview.MaterialTextView
+            android:id="@+id/productList_lblProduct"
+            style="@style/Woo.Card.Title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/orderdetail_product"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <!-- List: Products -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/productList_products"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:nestedScrollingEnabled="false"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/productList_lblProduct"
+            tools:itemCount="3"
+            tools:listitem="@layout/order_detail_product_list_item"
+            tools:targetApi="lollipop" />
+
+        <!-- Button: Details -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/productList_btnDetails"
+            style="@style/Woo.Button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/major_100"
+            android:layout_marginEnd="@dimen/minor_50"
+            android:text="@string/details"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/productList_products"
+            tools:visibility="visible" />
+
+        <!-- Button: Fulfill Order-->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/productList_btnFulfill"
+            style="@style/Woo.Button.Colored"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/major_100"
+            android:layout_marginEnd="@dimen/major_100"
+            android:layout_marginBottom="@dimen/major_100"
+            android:text="@string/order_begin_fulfillment"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/productList_btnDetails"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/productList_products"
+            tools:visibility="visible" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</merge>
