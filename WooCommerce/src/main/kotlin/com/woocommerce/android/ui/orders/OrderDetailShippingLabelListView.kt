@@ -28,6 +28,7 @@ import com.woocommerce.android.widgets.AppRatingDialog
 import kotlinx.android.synthetic.main.order_detail_shipping_label_list.view.*
 import kotlinx.android.synthetic.main.order_detail_shipping_label_list_item.view.*
 import java.math.BigDecimal
+import java.text.NumberFormat
 
 class OrderDetailShippingLabelListView @JvmOverloads constructor(
     ctx: Context,
@@ -39,14 +40,38 @@ class OrderDetailShippingLabelListView @JvmOverloads constructor(
     }
 
     private lateinit var viewAdapter: ShippingLabelListAdapter
+    private lateinit var printDataShippingLabelList: MutableList<String>
 
     fun initView(
         order: Order,
         shippingLabels: List<ShippingLabel>,
         productImageMap: ProductImageMap,
         formatCurrencyForDisplay: (BigDecimal) -> String,
-        shippingLabelActionListener: ShippingLabelActionListener
+        shippingLabelActionListener: ShippingLabelActionListener,
+        printDataShippingLabelList: MutableList<String>
     ) {
+        this.printDataShippingLabelList = printDataShippingLabelList
+        val numberFormatter = NumberFormat.getNumberInstance().apply {
+            maximumFractionDigits = 2
+        }
+        for(item in shippingLabels)
+        {
+            for(item2 in item.loadProductItems(order.items))
+            {
+                val orderTotal = formatCurrencyForDisplay(item2.total)
+                val productPrice = formatCurrencyForDisplay(item2.price)
+
+                printDataShippingLabelList.add(item2.name)
+                printDataShippingLabelList.add(numberFormatter.format(item2.quantity))
+                printDataShippingLabelList.add(context.getString(R.string.orderdetail_product_lineitem_sku_value, item2.sku))
+                printDataShippingLabelList.add(context.getString(
+                    R.string.orderdetail_product_lineitem_total_qty_and_price,
+                    orderTotal, item2.quantity.toString(), productPrice
+                ))
+                printDataShippingLabelList.add(formatCurrencyForDisplay(item2.totalTax))
+            }
+            printDataShippingLabelList.add("    ")
+        }
         val viewManager = LinearLayoutManager(context)
         viewAdapter = ShippingLabelListAdapter(
             context,
@@ -89,6 +114,7 @@ class OrderDetailShippingLabelListView @JvmOverloads constructor(
         override fun onBindViewHolder(holder: ShippingLabelListViewHolder, position: Int) {
             val shippingLabel = shippingLabels[position]
             holder.bindTo(context, order, shippingLabel, formatCurrencyForDisplay, shippingLabelActionListener)
+
             holder.bindProductItems(
                 context,
                 productImageMap,
@@ -197,6 +223,7 @@ class OrderDetailShippingLabelListView @JvmOverloads constructor(
                 formatCurrencyForDisplay: (BigDecimal) -> String,
                 viewPool: RecyclerView.RecycledViewPool
             ) {
+                var metaList = mutableListOf<MetaItem>()
                 val childLayoutManager = LinearLayoutManager(context)
                 itemView.shippingLabelList_products.apply {
                     layoutManager = childLayoutManager
@@ -205,7 +232,9 @@ class OrderDetailShippingLabelListView @JvmOverloads constructor(
                         productImageMap,
                         formatCurrencyForDisplay,
                         false,
-                        null
+                        null,
+                        metaList
+
                     )
                     if (itemDecorationCount == 0) {
                         addItemDecoration(

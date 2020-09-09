@@ -1,29 +1,42 @@
 package com.woocommerce.android.ui.orders
-
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
+import android.content.SharedPreferences
+import android.content.SharedPreferences.Editor
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.snackbar.Snackbar.Callback
 import com.woocommerce.android.AppPrefs
 import com.woocommerce.android.R
+import com.woocommerce.android.R.layout
+import com.woocommerce.android.R.string
 import com.woocommerce.android.RequestCodes
 import com.woocommerce.android.analytics.AnalyticsTracker
-import com.woocommerce.android.analytics.AnalyticsTracker.Stat
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat.ORDER_DETAIL_ISSUE_REFUND_BUTTON_TAPPED
+import com.woocommerce.android.analytics.AnalyticsTracker.Stat.ORDER_DETAIL_PULLED_TO_REFRESH
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat.ORDER_DETAIL_TRACKING_ADD_TRACKING_BUTTON_TAPPED
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat.ORDER_DETAIL_TRACKING_DELETE_BUTTON_TAPPED
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat.ORDER_DETAIL_VIEW_REFUND_DETAILS_BUTTON_TAPPED
+import com.woocommerce.android.analytics.AnalyticsTracker.Stat.ORDER_STATUS_CHANGE
+import com.woocommerce.android.analytics.AnalyticsTracker.Stat.ORDER_STATUS_CHANGE_UNDO
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat.SNACK_ORDER_MARKED_COMPLETE_UNDO_BUTTON_TAPPED
 import com.woocommerce.android.extensions.hide
 import com.woocommerce.android.extensions.navigateSafely
 import com.woocommerce.android.extensions.show
 import com.woocommerce.android.model.Order
+import com.woocommerce.android.model.Order.Item
 import com.woocommerce.android.model.Refund
 import com.woocommerce.android.model.ShippingLabel
+import com.woocommerce.android.model.fetchTrackingLinks
 import com.woocommerce.android.model.toAppModel
 import com.woocommerce.android.tools.NetworkStatus
 import com.woocommerce.android.tools.ProductImageMap
@@ -32,28 +45,35 @@ import com.woocommerce.android.ui.base.UIMessageResolver
 import com.woocommerce.android.ui.main.MainActivity
 import com.woocommerce.android.ui.main.MainActivity.NavigationResult
 import com.woocommerce.android.ui.main.MainNavigationRouter
+import com.woocommerce.android.ui.orders.OrderDetailContract.Presenter
+import com.woocommerce.android.ui.orders.OrderDetailOrderStatusView.OrderStatusListener
+import com.woocommerce.android.ui.orders.OrderStatusSelectorDialog.OrderStatusDialogListener
 import com.woocommerce.android.ui.orders.notes.OrderDetailOrderNoteListView.OrderDetailNoteListener
 import com.woocommerce.android.ui.orders.shippinglabels.ShippingLabelActionListener
+import com.woocommerce.android.ui.printer.MainPrinterActivity
+import com.woocommerce.android.ui.printer.MyPrinterPresenter
 import com.woocommerce.android.util.CurrencyFormatter
 import com.woocommerce.android.util.WooAnimUtils
+import com.woocommerce.android.util.WooAnimUtils.Duration.MEDIUM
 import com.woocommerce.android.widgets.SkeletonView
 import dagger.android.support.AndroidSupportInjection
 import kotlinx.android.synthetic.main.fragment_order_detail.*
 import org.wordpress.android.fluxc.model.WCOrderModel
 import org.wordpress.android.fluxc.model.WCOrderNoteModel
 import org.wordpress.android.fluxc.model.WCOrderShipmentTrackingModel
-import org.wordpress.android.fluxc.network.rest.wpcom.wc.order.CoreOrderStatus
+import org.wordpress.android.fluxc.network.rest.wpcom.wc.order.CoreOrderStatus.COMPLETED
+import org.wordpress.android.fluxc.network.rest.wpcom.wc.order.CoreOrderStatus.PROCESSING
 import javax.inject.Inject
 
 class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetailNoteListener,
-        OrderStatusSelectorDialog.OrderStatusDialogListener, NavigationResult, ShippingLabelActionListener {
+        OrderStatusDialogListener, NavigationResult, ShippingLabelActionListener {
     companion object {
         const val ARG_DID_MARK_COMPLETE = "did_mark_complete"
         const val STATE_KEY_REFRESH_PENDING = "is-refresh-pending"
         private const val REFUNDS_REFRESH_DELAY = 2000L
     }
 
-    @Inject lateinit var presenter: OrderDetailContract.Presenter
+    @Inject lateinit var presenter: Presenter
     @Inject lateinit var uiMessageResolver: UIMessageResolver
     @Inject lateinit var networkStatus: NetworkStatus
     @Inject lateinit var currencyFormatter: CurrencyFormatter
@@ -80,13 +100,106 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
     private var deleteOrderShipmentTrackingResponseSnackbar: Snackbar? = null
     private var deleteOrderShipmentTrackingSet = mutableSetOf<WCOrderShipmentTrackingModel>()
 
+
+
     private val navArgs: OrderDetailFragmentArgs by navArgs()
 
+    private var printDataOrderStatus = mutableListOf<String>()
+    private var printDataShippingMethodNotice = mutableListOf<String>()
+    private var printDataShippingLabelList = mutableListOf<String>()
+    private var printDataProductList = mutableListOf<String>()
+    private var printDataPaymentInfo = mutableListOf<String>()
+    private var printDataCustomerInfo = mutableListOf<String>()
+    private var printDataBillingInfo = mutableListOf<String>()
+    private var printDataShipmentList = mutableListOf<String>()
+    private var printDataNoteList = mutableListOf<String>()
+
+    private lateinit var sharedPreference: SharedPreferences
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setHasOptionsMenu(true)
         savedInstanceState?.let { bundle ->
             isRefreshPending = bundle.getBoolean(STATE_KEY_REFRESH_PENDING, false)
+        }
+        sharedPreference = requireActivity().getSharedPreferences(MainPrinterActivity.MyPREFERENCES, Context.MODE_PRIVATE)
+
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        super.onCreateOptionsMenu(menu, inflater)
+        val inflater: MenuInflater = requireActivity().menuInflater
+        inflater.inflate(R.menu.menu_order_detail, menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.itemId) {
+            R.id.action_print -> {
+
+                if(sharedPreference.contains(MainPrinterActivity.PRINTER_NAME))
+                {
+                    var strDevice = sharedPreference.getString(MainPrinterActivity.PRINTER_NAME, "")
+                    if(strDevice!!.isNotEmpty())
+                    {
+                        var printer = MyPrinterPresenter(
+                            requireActivity(),
+                            printDataOrderStatus,
+                            printDataShippingMethodNotice,
+                            printDataShippingLabelList,
+                            printDataProductList,
+                            printDataPaymentInfo,
+                            printDataCustomerInfo,
+                            printDataBillingInfo,
+                            printDataShipmentList,
+                            printDataNoteList
+                        )
+                        printer.setDeviceName(strDevice)
+                        printer.printOrder()
+                    }
+                    else
+                    {
+                        var intent = Intent(requireActivity(), MainPrinterActivity::class.java)
+                        startActivityForResult(intent, 999)
+                    }
+                }
+                else
+                {
+                    var intent = Intent(requireActivity(), MainPrinterActivity::class.java)
+                    startActivityForResult(intent, 999)
+                }
+
+//                var intent = Intent(requireActivity(), MainPrinterActivity::class.java)
+//                intent.putStringArrayListExtra("printDataOrderStatus", ArrayList(printDataOrderStatus))
+//                intent.putStringArrayListExtra("printDataShippingMethodNotice", ArrayList(printDataShippingMethodNotice))
+//                intent.putStringArrayListExtra("printDataShippingLabelList", ArrayList(printDataShippingLabelList))
+//                intent.putStringArrayListExtra("printDataProductList", ArrayList(printDataProductList))
+//                intent.putStringArrayListExtra("printDataPaymentInfo", ArrayList(printDataPaymentInfo))
+//                intent.putStringArrayListExtra("printDataCustomerInfo", ArrayList(printDataCustomerInfo))
+//                intent.putStringArrayListExtra("printDataBillingInfo", ArrayList(printDataBillingInfo))
+//                intent.putStringArrayListExtra("printDataShipmentList", ArrayList(printDataShipmentList))
+//                intent.putStringArrayListExtra("printDataNoteList", ArrayList(printDataNoteList))
+//                startActivity(intent)
+
+            }
+            else -> {
+            }
+        }
+
+        return true
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (data != null && resultCode == Activity.RESULT_OK && requestCode == 999) {
+            val target = data.getStringExtra(getString(string.title_target))
+            if (target != null && target.isNotEmpty()) {
+                val editor: Editor = sharedPreference.edit()
+                editor.putString(MainPrinterActivity.PRINTER_NAME, target)
+                editor.commit()
+            }
+            else
+            {
+            }
         }
     }
 
@@ -96,7 +209,7 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        return inflater.inflate(R.layout.fragment_order_detail, container, false)
+        return inflater.inflate(layout.fragment_order_detail, container, false)
     }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
@@ -130,7 +243,7 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
             // Set the scrolling view in the custom SwipeRefreshLayout
             scrollUpChild = scrollView
             setOnRefreshListener {
-                AnalyticsTracker.track(Stat.ORDER_DETAIL_PULLED_TO_REFRESH)
+                AnalyticsTracker.track(ORDER_DETAIL_PULLED_TO_REFRESH)
                 if (!isRefreshPending) {
                     // if undo snackbar is displayed, dismiss it and initiate request
                     // to change order status or delete shipment tracking
@@ -193,8 +306,9 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
         super.onDestroyView()
     }
 
+
     override fun getFragmentTitle() =
-        getString(R.string.orderdetail_orderstatus_ordernum, presenter.orderModel?.number.orEmpty())
+        getString(string.orderdetail_orderstatus_ordernum, presenter.orderModel?.number.orEmpty())
 
     override fun showRefunds(order: WCOrderModel, refunds: List<Refund>) {
         // show the refund products count if at least one refunded
@@ -213,12 +327,20 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
     }
 
     override fun showShippingLabels(order: WCOrderModel, shippingLabels: List<ShippingLabel>) {
+        // Shipment tracking links are not available by default from the shipping label API
+        // Until this is available on the API side, we need to fetch the tracking link from the
+        // shipment tracking API (if available) and link the tracking link to the corresponding
+        // tracking number of a shipping label
+        val shipmentTrackingList = presenter.getOrderShipmentTrackingsFromDb(order)
+        shippingLabels.map { it.fetchTrackingLinks(shipmentTrackingList) }
+
         orderDetail_shippingLabelList.initView(
             order.toAppModel(),
             shippingLabels,
             productImageMap,
             currencyFormatter.buildBigDecimalFormatter(order.currency),
-            this
+            this,
+            printDataShippingLabelList
         )
     }
 
@@ -231,8 +353,10 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
             val unpackagedAndNonRefundedProducts =
                 orderModel.getUnpackagedAndNonRefundedProducts(refunds, shippingLabels)
 
-            val listTitle = if (shippingLabels.isNotEmpty() && hasUnpackagedProducts) {
-                getString(R.string.orderdetail_shipping_label_unpackaged_products_header)
+            val listTitle = if (hasVirtualProductsOnly(unpackagedAndNonRefundedProducts)) {
+                getString(string.orderdetail_shipping_label_virtual_products_header)
+            } else if (shippingLabels.isNotEmpty() && hasUnpackagedProducts) {
+                getString(string.orderdetail_shipping_label_unpackaged_products_header)
             } else null
 
             orderDetail_productList.initView(
@@ -243,7 +367,8 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
                 formatCurrencyForDisplay = currencyFormatter.buildBigDecimalFormatter(order.currency),
                 orderListener = this,
                 productListener = this,
-                listTitle = listTitle
+                listTitle = listTitle,
+                printDataProductList = printDataProductList
             )
             orderDetail_productList.show()
         } else {
@@ -259,26 +384,30 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
             // Populate the Order Status Card
             val orderStatus = presenter.getOrderStatusForStatusKey(order.status)
             orderDetail_orderStatus
-                    .initView(order, orderStatus, object : OrderDetailOrderStatusView.OrderStatusListener {
+                    .initView(order, orderStatus, object : OrderStatusListener {
                         override fun openOrderStatusSelector() {
                             showOrderStatusSelector()
                         }
-                    })
+                    }, printDataOrderStatus)
 
             // check if product is a virtual product. If it is, hide only the shipping details card
             val isVirtualProduct = presenter.isVirtualProduct(order)
             orderDetail_customerInfo.initView(
-                    order = order,
-                    shippingOnly = false,
-                    billingOnly = isVirtualProduct)
+                order = order,
+                shippingOnly = false,
+                billingOnly = isVirtualProduct,
+                printDataCustomerInfo = printDataCustomerInfo,
+                printDataBillingInfo = printDataBillingInfo
+            )
 
             showOrderShippingNotice(isVirtualProduct, order)
 
             // Populate the Payment Information Card
             orderDetail_paymentInfo.initView(
-                    order.toAppModel(),
-                    currencyFormatter.buildBigDecimalFormatter(order.currency),
-                    this
+                order.toAppModel(),
+                currencyFormatter.buildBigDecimalFormatter(order.currency),
+                this,
+                printDataPaymentInfo
             )
 
             if (isFreshData) {
@@ -296,7 +425,7 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
 
     override fun showOrderNotes(notes: List<WCOrderNoteModel>) {
         // Populate order notes card
-        orderDetail_noteList.initView(notes.map { it.toAppModel() }, this)
+        orderDetail_noteList.initView(notes.map { it.toAppModel() }, this, printDataNoteList)
     }
 
     override fun showOrderShipmentTrackings(trackings: List<WCOrderShipmentTrackingModel>) {
@@ -304,16 +433,17 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
             trackings = trackings,
             uiMessageResolver = uiMessageResolver,
             isOrderDetail = true,
-            shipmentTrackingActionListener = this
+            shipmentTrackingActionListener = this,
+            printDataShipmentList = printDataShipmentList
         )
         if (orderDetail_shipmentList.visibility != View.VISIBLE) {
-            WooAnimUtils.scaleIn(orderDetail_shipmentList, WooAnimUtils.Duration.MEDIUM)
+            WooAnimUtils.scaleIn(orderDetail_shipmentList, MEDIUM)
         }
     }
 
     override fun hideOrderShipmentTrackings() {
         if (orderDetail_shipmentList.visibility != View.GONE) {
-            WooAnimUtils.scaleOut(orderDetail_shipmentList, WooAnimUtils.Duration.MEDIUM)
+            WooAnimUtils.scaleOut(orderDetail_shipmentList, MEDIUM)
         }
     }
 
@@ -328,9 +458,9 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
 
     override fun openOrderFulfillment(order: WCOrderModel) {
         val action = OrderDetailFragmentDirections.actionOrderDetailFragmentToOrderFulfillmentFragment(
-                order.getIdentifier(),
-                order.number,
-                presenter.isShipmentTrackingsFetched
+            order.getIdentifier(),
+            order.number,
+            presenter.isShipmentTrackingsFetched
         )
         findNavController().navigateSafely(action)
     }
@@ -343,10 +473,12 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
     }
 
     override fun showRefundDetail(orderId: Long, refundId: Long) {
-        AnalyticsTracker.track(ORDER_DETAIL_VIEW_REFUND_DETAILS_BUTTON_TAPPED, mapOf(
-                AnalyticsTracker.KEY_ORDER_ID to orderId,
-                AnalyticsTracker.KEY_ID to refundId
-        ))
+        AnalyticsTracker.track(
+            ORDER_DETAIL_VIEW_REFUND_DETAILS_BUTTON_TAPPED, mapOf(
+            AnalyticsTracker.KEY_ORDER_ID to orderId,
+            AnalyticsTracker.KEY_ID to refundId
+        )
+        )
 
         val action = OrderDetailFragmentDirections.actionOrderDetailFragmentToRefundDetailFragment(orderId, refundId)
         findNavController().navigateSafely(action)
@@ -354,15 +486,15 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
 
     override fun openOrderProductList(order: WCOrderModel) {
         val action = OrderDetailFragmentDirections.actionOrderDetailFragmentToOrderProductListFragment(
-                order.getIdentifier(),
-                order.number
+            order.getIdentifier(),
+            order.number
         )
         findNavController().navigateSafely(action)
     }
 
     override fun openRefundedProductList(order: WCOrderModel) {
         val action = OrderDetailFragmentDirections.actionOrderDetailFragmentToRefundDetailFragment(
-                order.remoteOrderId
+            order.remoteOrderId
         )
         findNavController().navigateSafely(action)
     }
@@ -378,9 +510,10 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
             presenter.orderModel?.let {
                 orderDetail_productList.updateView(it, this)
                 orderDetail_paymentInfo.initView(
-                        it.toAppModel(),
-                        currencyFormatter.buildBigDecimalFormatter(it.currency),
-                        this
+                    it.toAppModel(),
+                    currencyFormatter.buildBigDecimalFormatter(it.currency),
+                    this,
+                    printDataPaymentInfo
                 )
             }
         }
@@ -410,10 +543,13 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
         changeOrderStatusCanceled = false
 
         presenter.orderModel?.let { order ->
-            AnalyticsTracker.track(Stat.ORDER_STATUS_CHANGE, mapOf(
-                    AnalyticsTracker.KEY_ID to order.remoteOrderId,
-                    AnalyticsTracker.KEY_FROM to order.status,
-                    AnalyticsTracker.KEY_TO to newStatus))
+            AnalyticsTracker.track(
+                ORDER_STATUS_CHANGE, mapOf(
+                AnalyticsTracker.KEY_ID to order.remoteOrderId,
+                AnalyticsTracker.KEY_FROM to order.status,
+                AnalyticsTracker.KEY_TO to newStatus
+            )
+            )
 
             previousOrderStatus = order.status
             order.status = newStatus
@@ -424,11 +560,12 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
             // Listener for the UNDO button in the snackbar
             val actionListener = View.OnClickListener {
                 AnalyticsTracker.track(
-                        Stat.ORDER_STATUS_CHANGE_UNDO,
-                        mapOf(AnalyticsTracker.KEY_ID to order.remoteOrderId))
+                    ORDER_STATUS_CHANGE_UNDO,
+                    mapOf(AnalyticsTracker.KEY_ID to order.remoteOrderId)
+                )
 
                 when (newStatus) {
-                    CoreOrderStatus.COMPLETED.value ->
+                    COMPLETED.value ->
                         AnalyticsTracker.track(SNACK_ORDER_MARKED_COMPLETE_UNDO_BUTTON_TAPPED)
                     else -> {}
                 }
@@ -437,10 +574,10 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
                 changeOrderStatusCanceled = true
 
                 // if the fulfilled status was undone, tell the main activity to update the unfilled order badge
-                if (newStatus == CoreOrderStatus.COMPLETED.value ||
-                        newStatus == CoreOrderStatus.PROCESSING.value ||
-                        previousOrderStatus == CoreOrderStatus.COMPLETED.value ||
-                        previousOrderStatus == CoreOrderStatus.PROCESSING.value) {
+                if (newStatus == COMPLETED.value ||
+                        newStatus == PROCESSING.value ||
+                        previousOrderStatus == COMPLETED.value ||
+                        previousOrderStatus == PROCESSING.value) {
                     (activity as? MainActivity)?.updateOrderBadge(true)
                 }
 
@@ -455,7 +592,7 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
 
             // Callback listens for the snackbar to be dismissed. If the swiped to dismiss, or it
             // timed out, then process the request to change the order status
-            val callback = object : Snackbar.Callback() {
+            val callback = object : Callback() {
                 override fun onDismissed(transientBottomBar: Snackbar?, event: Int) {
                     super.onDismissed(transientBottomBar, event)
                     if (pendingNotesError) {
@@ -469,8 +606,8 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
 
             // Select the appropriate snack message based on the new status
             val snackMsg = when (newStatus) {
-                CoreOrderStatus.COMPLETED.value -> R.string.order_fulfill_marked_complete
-                else -> R.string.order_status_changed_to
+                COMPLETED.value -> string.order_fulfill_marked_complete
+                else -> string.order_status_changed_to
             }
             changeOrderStatusSnackbar = uiMessageResolver
                     .getUndoSnack(snackMsg, newStatus, actionListener = actionListener)
@@ -489,14 +626,14 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
 
     override fun showSkeleton(show: Boolean) {
         when (show) {
-            true -> skeletonView.show(orderDetail_container, R.layout.skeleton_order_detail, delayed = true)
+            true -> skeletonView.show(orderDetail_container, layout.skeleton_order_detail, delayed = true)
             false -> skeletonView.hide()
         }
     }
 
     override fun showLoadOrderError() {
         showSkeleton(false)
-        uiMessageResolver.showSnack(R.string.order_error_fetch_generic)
+        uiMessageResolver.showSnack(string.order_error_fetch_generic)
 
         if (isStateSaved) {
             runOnStartFunc = { activity?.onBackPressed() }
@@ -507,14 +644,14 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
 
     override fun showAddOrderNoteScreen(order: WCOrderModel) {
         val action = OrderDetailFragmentDirections.actionOrderDetailFragmentToAddOrderNoteFragment(
-                order.getIdentifier(),
-                order.number
+            order.getIdentifier(),
+            order.number
         )
         findNavController().navigateSafely(action)
     }
 
     override fun showAddOrderNoteErrorSnack() {
-        uiMessageResolver.getSnack(R.string.add_order_note_error).show()
+        uiMessageResolver.getSnack(string.add_order_note_error).show()
     }
 
     /**
@@ -545,7 +682,7 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
     }
 
     override fun showNotesErrorSnack() {
-        notesSnack = uiMessageResolver.getSnack(R.string.order_error_fetch_notes_generic)
+        notesSnack = uiMessageResolver.getSnack(string.order_error_fetch_notes_generic)
 
         if ((changeOrderStatusSnackbar?.isShownOrQueued) == true) {
             pendingNotesError = true
@@ -555,7 +692,7 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
     }
 
     override fun showOrderStatusChangedError() {
-        uiMessageResolver.getSnack(R.string.order_error_update_general).show()
+        uiMessageResolver.getSnack(string.order_error_update_general).show()
         previousOrderStatus?.let { status ->
             setOrderStatus(status)
         }
@@ -576,7 +713,7 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
 
     override fun showDeleteTrackingErrorSnack() {
         deleteOrderShipmentTrackingResponseSnackbar =
-                uiMessageResolver.getSnack(R.string.order_shipment_tracking_delete_error)
+                uiMessageResolver.getSnack(string.order_shipment_tracking_delete_error)
         if ((deleteOrderShipmentTrackingSnackbar?.isShownOrQueued) == false) {
             deleteOrderShipmentTrackingResponseSnackbar?.show()
         }
@@ -584,18 +721,18 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
 
     override fun markTrackingDeletedOnSuccess() {
         deleteOrderShipmentTrackingResponseSnackbar =
-                uiMessageResolver.getSnack(R.string.order_shipment_tracking_delete_success)
+                uiMessageResolver.getSnack(string.order_shipment_tracking_delete_success)
         if ((deleteOrderShipmentTrackingSnackbar?.isShownOrQueued) == false) {
             deleteOrderShipmentTrackingResponseSnackbar?.show()
         }
     }
 
     override fun showAddShipmentTrackingSnack() {
-        uiMessageResolver.getSnack(R.string.order_shipment_tracking_added).show()
+        uiMessageResolver.getSnack(string.order_shipment_tracking_added).show()
     }
 
     override fun showAddAddShipmentTrackingErrorSnack() {
-        uiMessageResolver.getSnack(R.string.order_shipment_tracking_error).show()
+        uiMessageResolver.getSnack(string.order_shipment_tracking_error).show()
     }
 
     override fun onOrderStatusSelected(orderStatus: String?) {
@@ -608,9 +745,9 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
         AnalyticsTracker.track(ORDER_DETAIL_TRACKING_ADD_TRACKING_BUTTON_TAPPED)
         presenter.orderModel?.let { order ->
             val action = OrderDetailFragmentDirections.actionOrderDetailFragmentToAddOrderShipmentTrackingFragment(
-                    orderId = order.getIdentifier(),
-                    orderTrackingProvider = AppPrefs.getSelectedShipmentTrackingProviderName(),
-                    isCustomProvider = AppPrefs.getIsSelectedShipmentTrackingProviderCustom()
+                orderId = order.getIdentifier(),
+                orderTrackingProvider = AppPrefs.getSelectedShipmentTrackingProviderName(),
+                isCustomProvider = AppPrefs.getIsSelectedShipmentTrackingProviderCustom()
             )
             findNavController().navigateSafely(action)
         }
@@ -654,7 +791,7 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
             orderDetail_shipmentList.visibility = View.VISIBLE
         }
 
-        val callback = object : Snackbar.Callback() {
+        val callback = object : Callback() {
             // The onDismiss in snack bar is called multiple times.
             // In order to avoid requesting delete multiple times, we are
             // storing the deleted items in a set and removing them from the set
@@ -670,7 +807,7 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
 
         // Display snack bar with undo option here
         deleteOrderShipmentTrackingSnackbar = uiMessageResolver
-                .getUndoSnack(R.string.order_shipment_tracking_delete_snackbar_msg, actionListener = actionListener)
+                .getUndoSnack(string.order_shipment_tracking_delete_snackbar_msg, actionListener = actionListener)
                 .also {
                     it.addCallback(callback)
                     it.show()
@@ -704,11 +841,12 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
             val orderStatus = order.status
             orderStatusSelector = OrderStatusSelectorDialog
                     .newInstance(
-                            orderStatusOptions,
-                            orderStatus,
-                            false,
-                            listener = this)
-                    .also { it.show(parentFragmentManager, OrderStatusSelectorDialog.TAG) }
+                        orderStatusOptions,
+                        orderStatus,
+                        false,
+                        listener = this
+                    )
+                    .also { it.show(requireFragmentManager(), OrderStatusSelectorDialog.TAG) }
         }
     }
 
@@ -719,5 +857,23 @@ class OrderDetailFragment : BaseFragment(), OrderDetailContract.View, OrderDetai
     private fun showOrderShippingNotice(isVirtualProduct: Boolean, order: WCOrderModel) {
         val hideShippingMethodNotice = isVirtualProduct || !order.isMultiShippingLinesAvailable()
         orderDetail_shippingMethodNotice.visibility = if (hideShippingMethodNotice) View.GONE else View.VISIBLE
+    }
+
+    private fun hasVirtualProductsOnly(
+        orderItems: List<Item>
+    ): Boolean {
+        val remoteProductIds: List<Long> = orderItems.map { it.productId }
+        if (remoteProductIds.isNullOrEmpty()) {
+            return false
+        }
+
+        // verify that the LineItem product is in the local cache and
+        // that the product count in the local cache matches the lineItem count.
+        val productModels = presenter.getProductsByIds(remoteProductIds)
+        if (productModels.isNullOrEmpty() || productModels.count() != remoteProductIds.count()) {
+            return false
+        }
+
+        return productModels.none { !it.virtual }
     }
 }

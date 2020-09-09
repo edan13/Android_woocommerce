@@ -3,6 +3,8 @@ package com.woocommerce.android.ui.prefs
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
+import android.content.SharedPreferences.Editor
 import android.os.Build
 import android.os.Bundle
 import android.text.Spannable
@@ -17,6 +19,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.woocommerce.android.AppPrefs
 import com.woocommerce.android.AppUrls
 import com.woocommerce.android.R
+import com.woocommerce.android.R.string
 import com.woocommerce.android.RequestCodes
 import com.woocommerce.android.analytics.AnalyticsTracker
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat.SETTINGS_ABOUT_OPEN_SOURCE_LICENSES_LINK_TAPPED
@@ -31,6 +34,7 @@ import com.woocommerce.android.analytics.AnalyticsTracker.Stat.SETTINGS_SELECTED
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat.SETTINGS_WE_ARE_HIRING_BUTTON_TAPPED
 import com.woocommerce.android.analytics.AnalyticsTracker.Stat.SETTING_CHANGE
 import com.woocommerce.android.extensions.navigateSafely
+import com.woocommerce.android.ui.printer.MainPrinterActivity
 import com.woocommerce.android.ui.sitepicker.SitePickerActivity
 import com.woocommerce.android.util.AnalyticsUtils
 import com.woocommerce.android.util.AppThemeUtils
@@ -72,7 +76,7 @@ class MainSettingsFragment : androidx.fragment.app.Fragment(), MainSettingsContr
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
-
+        sharedPreference = requireActivity().getSharedPreferences(MainPrinterActivity.MyPREFERENCES, Context.MODE_PRIVATE)
         if (activity is AppSettingsListener) {
             settingsListener = activity as AppSettingsListener
         } else {
@@ -95,13 +99,14 @@ class MainSettingsFragment : androidx.fragment.app.Fragment(), MainSettingsContr
             val settingsFooterText = getString(R.string.settings_footer, hiringText)
             val spannable = SpannableString(settingsFooterText)
             spannable.setSpan(
-                    WooClickableSpan {
-                        AnalyticsTracker.track(SETTINGS_WE_ARE_HIRING_BUTTON_TAPPED)
-                        ChromeCustomTabUtils.launchUrl(context, AppUrls.AUTOMATTIC_HIRING)
-                    },
-                    (settingsFooterText.length - hiringText.length),
-                    settingsFooterText.length,
-                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                WooClickableSpan {
+                    AnalyticsTracker.track(SETTINGS_WE_ARE_HIRING_BUTTON_TAPPED)
+                    ChromeCustomTabUtils.launchUrl(context, AppUrls.AUTOMATTIC_HIRING)
+                },
+                (settingsFooterText.length - hiringText.length),
+                settingsFooterText.length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
 
             setText(spannable, TextView.BufferType.SPANNABLE)
             movementMethod = LinkMovementMethod.getInstance()
@@ -111,8 +116,8 @@ class MainSettingsFragment : androidx.fragment.app.Fragment(), MainSettingsContr
         option_image_optimization.isChecked = AppPrefs.getImageOptimizationEnabled()
         option_image_optimization.setOnCheckedChangeListener { _, isChecked ->
             AnalyticsTracker.track(
-                    SETTINGS_IMAGE_OPTIMIZATION_TOGGLED,
-                    mapOf(AnalyticsTracker.KEY_STATE to AnalyticsUtils.getToggleStateLabel(isChecked))
+                SETTINGS_IMAGE_OPTIMIZATION_TOGGLED,
+                mapOf(AnalyticsTracker.KEY_STATE to AnalyticsUtils.getToggleStateLabel(isChecked))
             )
             AppPrefs.setImageOptimizationEnabled(isChecked)
         }
@@ -192,6 +197,28 @@ class MainSettingsFragment : androidx.fragment.app.Fragment(), MainSettingsContr
             // FIXME AMANDA tracks event
             showThemeChooser()
         }
+
+        if(sharedPreference.contains(MainPrinterActivity.PRINTER_NAME))
+        {
+            var devName = sharedPreference.getString(MainPrinterActivity.PRINTER_NAME, "")
+            if(devName!!.isNotEmpty())
+                option_test_printer.optionValue = devName
+        }
+        else
+        {
+            option_test_printer.optionValue = "No Device."
+        }
+
+        option_test_printer.setOnClickListener {
+            openFindPrint()
+        }
+
+    }
+
+    private fun openFindPrint()
+    {
+        var intent = Intent(requireActivity(), MainPrinterActivity::class.java)
+        startActivityForResult(intent, 999)
     }
 
     override fun onResume() {
@@ -201,6 +228,9 @@ class MainSettingsFragment : androidx.fragment.app.Fragment(), MainSettingsContr
         activity?.setTitle(R.string.settings)
     }
 
+    private lateinit  var sharedPreference: SharedPreferences
+
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
@@ -209,6 +239,20 @@ class MainSettingsFragment : androidx.fragment.app.Fragment(), MainSettingsContr
         if (requestCode == RequestCodes.SITE_PICKER && resultCode == Activity.RESULT_OK) {
             updateStoreViews()
             settingsListener.onSiteChanged()
+        }
+
+        if (data != null && resultCode == Activity.RESULT_OK && requestCode == 999) {
+            val target = data.getStringExtra(getString(string.title_target))
+            if (target != null && target.isNotEmpty()) {
+                val editor: Editor = sharedPreference.edit()
+                editor.putString(MainPrinterActivity.PRINTER_NAME, target)
+                editor.commit()
+                option_test_printer.optionValue = target
+            }
+            else
+            {
+                option_test_printer.optionValue = "No Device."
+            }
         }
     }
 
@@ -235,10 +279,11 @@ class MainSettingsFragment : androidx.fragment.app.Fragment(), MainSettingsContr
      */
     private fun trackSettingToggled(keyName: String, newValue: Boolean) {
         AnalyticsTracker.track(
-                SETTING_CHANGE, mapOf(
-                AnalyticsTracker.KEY_NAME to keyName,
-                AnalyticsTracker.KEY_FROM to !newValue,
-                AnalyticsTracker.KEY_TO to newValue)
+            SETTING_CHANGE, mapOf(
+            AnalyticsTracker.KEY_NAME to keyName,
+            AnalyticsTracker.KEY_FROM to !newValue,
+            AnalyticsTracker.KEY_TO to newValue
+        )
         )
     }
 

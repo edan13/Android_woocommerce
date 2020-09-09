@@ -26,7 +26,8 @@ class OrderDetailProductItemView @JvmOverloads constructor(
         item: Order.Item,
         productImage: String?,
         expanded: Boolean,
-        formatCurrencyForDisplay: (BigDecimal) -> String
+        formatCurrencyForDisplay: (BigDecimal) -> String,
+        metaItem: MetaItem
     ) {
         productInfo_name.text = item.name
 
@@ -56,6 +57,12 @@ class OrderDetailProductItemView @JvmOverloads constructor(
             R.string.orderdetail_product_lineitem_total_qty_and_price,
             orderTotal, item.quantity.toString(), productPrice
         )
+        var strMeta = ""
+        for(item in metaItem.metaList)
+        {
+            strMeta += item.key + " " + item.value + "\n"
+        }
+        productInfo_meta.text = strMeta
 
         if (expanded) {
             productInfo_totalTax.text = formatCurrencyForDisplay(item.totalTax)

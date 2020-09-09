@@ -24,6 +24,10 @@ class OrderDetailCustomerInfoView @JvmOverloads constructor(
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) : MaterialCardView(ctx, attrs, defStyleAttr) {
+
+    private lateinit var printDataCustomerInfo: MutableList<String>
+    private lateinit var printDataBillingInfo: MutableList<String>
+
     init {
         View.inflate(context, R.layout.order_detail_customer_info, this)
     }
@@ -32,8 +36,12 @@ class OrderDetailCustomerInfoView @JvmOverloads constructor(
     fun initView(
         order: WCOrderModel,
         shippingOnly: Boolean,
-        billingOnly: Boolean = false
+        billingOnly: Boolean = false,
+        printDataCustomerInfo: MutableList<String>,
+        printDataBillingInfo: MutableList<String>
     ) {
+        this.printDataCustomerInfo = printDataCustomerInfo
+        this.printDataBillingInfo = printDataBillingInfo
         // Populate Shipping & Billing information
         val billingAddressFull = getBillingInformation(order)
         val isShippingInfoEmpty = !isShippingAvailable(order)
@@ -43,6 +51,7 @@ class OrderDetailCustomerInfoView @JvmOverloads constructor(
         if (order.customerNote.isEmpty()) {
             customerInfo_customerNoteSection.hide()
         } else {
+            this.printDataCustomerInfo.add("\"${order.customerNote}\"")
             customerInfo_customerNoteSection.show()
             customerInfo_customerNote.text = "\"${order.customerNote}\""
         }
@@ -66,6 +75,7 @@ class OrderDetailCustomerInfoView @JvmOverloads constructor(
 
             // display phone only if available, otherwise, hide the view
             if (order.billingPhone.isNotEmpty()) {
+                printDataBillingInfo.add(PhoneUtils.formatPhone(order.billingPhone))
                 customerInfo_phone.text = PhoneUtils.formatPhone(order.billingPhone)
                 customerInfo_phone.visibility = View.VISIBLE
                 customerInfo_divider3.visibility = View.VISIBLE
@@ -81,6 +91,7 @@ class OrderDetailCustomerInfoView @JvmOverloads constructor(
 
             // display email address info only if available, otherwise, hide the view
             if (order.billingEmail.isNotEmpty()) {
+                printDataBillingInfo.add(PhoneUtils.formatPhone(order.billingEmail))
                 customerInfo_emailAddr.text = order.billingEmail
                 customerInfo_emailAddr.visibility = View.VISIBLE
                 customerInfo_emailBtn.visibility - View.VISIBLE
@@ -115,12 +126,14 @@ class OrderDetailCustomerInfoView @JvmOverloads constructor(
             AddressUtils.getEnvelopeAddress(order.getShippingAddress()).isNotEmpty()
 
     fun initShippingSection(order: WCOrderModel, hide: Boolean) {
+        printDataCustomerInfo.clear()
         if (hide) {
             customerInfo_shippingSection.hide()
         } else {
             if (!isShippingAvailable(order)) {
                 customerInfo_shippingAddr.text = context.getString(R.string.orderdetail_empty_shipping_address)
                 customerInfo_shippingMethodSection.hide()
+                printDataCustomerInfo.add(context.getString(R.string.orderdetail_empty_shipping_address))
             } else {
                 val shippingName = context
                     .getString(R.string.customer_full_name, order.shippingFirstName, order.shippingLastName)
@@ -136,6 +149,11 @@ class OrderDetailCustomerInfoView @JvmOverloads constructor(
                     customerInfo_shippingMethodSection.show()
                     customerInfo_shippingMethod.text = shippingMethodList.first().methodTitle
                 }
+                printDataCustomerInfo.add(shippingName)
+                printDataCustomerInfo.add(shippingAddress)
+                printDataCustomerInfo.add(shippingCountry)
+                printDataCustomerInfo.add(shippingAddressFull)
+                printDataCustomerInfo.add(shippingMethodList.first().methodTitle.toString())
             }
         }
     }
@@ -145,6 +163,11 @@ class OrderDetailCustomerInfoView @JvmOverloads constructor(
                 .getString(R.string.customer_full_name, order.billingFirstName, order.billingLastName)
         val billingAddress = AddressUtils.getEnvelopeAddress(order.getBillingAddress())
         val billingCountry = AddressUtils.getCountryLabelByCountryCode(order.billingCountry)
+
+        printDataBillingInfo.clear()
+        printDataBillingInfo.add(billingName)
+        printDataBillingInfo.add(billingAddress)
+        printDataBillingInfo.add(billingCountry)
         return getFullAddress(billingName, billingAddress, billingCountry)
     }
 

@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
 import com.woocommerce.android.R
 import com.woocommerce.android.ui.base.UIMessageResolver
+import com.woocommerce.android.util.DateUtils
 import kotlinx.android.synthetic.main.order_detail_shipment_tracking_list.view.*
 import org.wordpress.android.fluxc.model.WCOrderShipmentTrackingModel
 
@@ -33,7 +34,8 @@ class OrderDetailShipmentTrackingListView @JvmOverloads constructor(
         trackings: List<WCOrderShipmentTrackingModel>,
         uiMessageResolver: UIMessageResolver,
         isOrderDetail: Boolean,
-        shipmentTrackingActionListener: OrderShipmentTrackingActionListener? = null
+        shipmentTrackingActionListener: OrderShipmentTrackingActionListener? = null,
+        printDataShipmentList: MutableList<String>
     ) {
         val viewManager = androidx.recyclerview.widget.LinearLayoutManager(context)
         val viewAdapter = ShipmentTrackingListAdapter(
@@ -42,6 +44,13 @@ class OrderDetailShipmentTrackingListView @JvmOverloads constructor(
                 isOrderDetail,
                 shipmentTrackingActionListener
         )
+        printDataShipmentList.clear()
+        for(item in trackings)
+        {
+            printDataShipmentList.add(item.trackingProvider + item.trackingNumber + context.getString(
+            R.string.order_shipment_tracking_shipped_date,
+            DateUtils.getLocalizedLongDateString(context, item.dateShipped)) + "\n")
+        }
 
         shipmentTrack_items.apply {
             setHasFixedSize(true)

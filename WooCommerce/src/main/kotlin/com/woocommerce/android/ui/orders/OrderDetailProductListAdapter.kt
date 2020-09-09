@@ -16,7 +16,8 @@ class OrderDetailProductListAdapter(
     private val productImageMap: ProductImageMap,
     private val formatCurrencyForDisplay: (BigDecimal) -> String,
     private var isExpanded: Boolean,
-    private val productListener: OrderProductActionListener?
+    private val productListener: OrderProductActionListener?,
+    private val metaList: MutableList<MetaItem>
 ) : RecyclerView.Adapter<OrderDetailProductListAdapter.ViewHolder>() {
     class ViewHolder(val view: OrderDetailProductItemView) : RecyclerView.ViewHolder(view)
 
@@ -31,7 +32,7 @@ class OrderDetailProductListAdapter(
         val item = orderItems[position]
         val productId = ProductHelper.productOrVariationId(item.productId, item.variationId)
         val productImage = productImageMap.get(productId)
-        holder.view.initView(orderItems[position], productImage, isExpanded, formatCurrencyForDisplay)
+        holder.view.initView(orderItems[position], productImage, isExpanded, formatCurrencyForDisplay, metaList.get(position))
         holder.view.setOnClickListener {
             AnalyticsTracker.track(ORDER_DETAIL_PRODUCT_TAPPED)
             productListener?.openOrderProductDetail(productId)

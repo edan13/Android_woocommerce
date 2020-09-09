@@ -5,7 +5,6 @@ import com.google.i18n.addressinput.common.AddressData
 import com.google.i18n.addressinput.common.FormOptions
 import com.google.i18n.addressinput.common.FormatInterpreter
 import com.woocommerce.android.extensions.appendWithIfNotEmpty
-import com.woocommerce.android.ui.orders.shippinglabels.ShipmentTrackingUrls
 import com.woocommerce.android.util.WooLog
 import com.woocommerce.android.util.WooLog.T
 import kotlinx.android.parcel.IgnoredOnParcel
@@ -146,33 +145,15 @@ fun ShippingLabel.loadProductItems(orderItems: List<Order.Item>) =
     orderItems.filter { it.name in productNames }
 
 /**
- * Shipment tracking links are not available by default from the shipping label API.
- * Until this is available on the API side, we need to fetch the tracking link from the
- * shipment tracking API (if available) and link the tracking link to the corresponding
- * tracking number of a shipping label.
- *
- * In cases where the ST plugin is not available, we need to fetch the tracking url based on the
- * carrierId, mapped in [ShipmentTrackingUrls]. This is currently how WCS is handling it
-*/
-fun List<ShippingLabel>.appendTrackingUrls(
+ * Method matches the tracking link from the [WCOrderShipmentTrackingModel] to the
+ * corresponding tracking number of a [ShippingLabel]
+ */
+fun ShippingLabel.fetchTrackingLinks(
     orderShipmentTrackings: List<WCOrderShipmentTrackingModel>
-): List<ShippingLabel> {
-    this.map { shippingLabel ->
-        if (orderShipmentTrackings.isEmpty()) {
-            shippingLabel.trackingLink = ShipmentTrackingUrls.fromCarrier(
-                shippingLabel.carrierId, shippingLabel.trackingNumber
-            )
-        } else {
-            orderShipmentTrackings.forEach { shipmentTracking ->
-                shippingLabel.trackingLink = if (shipmentTracking.trackingNumber == shippingLabel.trackingNumber) {
-                    shipmentTracking.trackingLink
-                } else {
-                    ShipmentTrackingUrls.fromCarrier(
-                        shippingLabel.carrierId, shippingLabel.trackingNumber
-                    )
-                }
-            }
+) {
+    orderShipmentTrackings.forEach { shipmentTracking ->
+        if (shipmentTracking.trackingNumber == this.trackingNumber) {
+            this.trackingLink = shipmentTracking.trackingLink
         }
     }
-    return this
 }

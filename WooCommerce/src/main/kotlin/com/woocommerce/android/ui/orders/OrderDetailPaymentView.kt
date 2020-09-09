@@ -34,8 +34,10 @@ class OrderDetailPaymentView @JvmOverloads constructor(
     fun initView(
         order: Order,
         formatCurrencyForDisplay: (BigDecimal) -> String,
-        actionListener: OrderRefundActionListener
+        actionListener: OrderRefundActionListener,
+        printDataPaymentInfo: MutableList<String>
     ) {
+        printDataPaymentInfo.clear()
         this.formatCurrency = formatCurrencyForDisplay
         this.actionListener = actionListener
         this.order = order
@@ -45,6 +47,12 @@ class OrderDetailPaymentView @JvmOverloads constructor(
         paymentInfo_taxesTotal.text = formatCurrencyForDisplay(order.totalTax)
         paymentInfo_total.text = formatCurrencyForDisplay(order.total)
         paymentInfo_lblTitle.text = context.getString(R.string.payment)
+
+        printDataPaymentInfo.add(formatCurrencyForDisplay(order.productsTotal))
+        printDataPaymentInfo.add(formatCurrencyForDisplay(order.shippingTotal))
+        printDataPaymentInfo.add(formatCurrencyForDisplay(order.totalTax))
+        printDataPaymentInfo.add(formatCurrencyForDisplay(order.total))
+
 
         paymentInfo_refunds.layoutManager = LinearLayoutManager(context)
         paymentInfo_refunds.setHasFixedSize(true)
@@ -62,9 +70,13 @@ class OrderDetailPaymentView @JvmOverloads constructor(
                 paymentInfo_paymentMsg.text = context.getString(
                         R.string.orderdetail_payment_summary_onhold, order.paymentMethodTitle
                 )
+                printDataPaymentInfo.add(formatCurrencyForDisplay(BigDecimal.ZERO))
+                printDataPaymentInfo.add(context.getString(
+                    R.string.orderdetail_payment_summary_onhold, order.paymentMethodTitle
+                ))
             } else {
                 paymentInfo_paid.text = formatCurrencyForDisplay(order.total)
-
+                printDataPaymentInfo.add(formatCurrencyForDisplay(order.total))
                 val dateStr = DateFormat.getMediumDateFormat(context).format(order.datePaid)
                 if (order.paymentMethodTitle.isNotEmpty()) {
                     paymentInfo_paymentMsg.text = context.getString(
@@ -72,8 +84,14 @@ class OrderDetailPaymentView @JvmOverloads constructor(
                         dateStr,
                         order.paymentMethodTitle
                     )
+                    printDataPaymentInfo.add(context.getString(
+                        R.string.orderdetail_payment_summary_completed,
+                        dateStr,
+                        order.paymentMethodTitle
+                    ))
                 } else {
                     paymentInfo_paymentMsg.text = dateStr
+                    printDataPaymentInfo.add(dateStr)
                 }
             }
         }

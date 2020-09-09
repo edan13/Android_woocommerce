@@ -9,11 +9,16 @@
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.ACTION_OPEN_DOCUMENT"/>
 
+    <uses-permission android:name="android.permission.BLUETOOTH"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
     <!-- Dangerous permissions, access must be requested at runtime -->
     <uses-permission android:name="android.permission.CAMERA" />
 
     <application
-        android:allowBackup="true"
         android:fullBackupContent="@xml/backup_scheme"
         android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher"
@@ -82,6 +87,46 @@
 
         <activity android:name="zendesk.support.requestlist.RequestListActivity"
             android:theme="@style/Theme.Woo.DayNight.Zendesk" />
+
+        <!-- printer -->
+
+        <activity
+            android:name=".ui.printer.SettingActivity"
+            android:screenOrientation="portrait" ></activity>
+        <activity
+            android:name=".ui.printer.PrinterSettingActivity"
+            android:screenOrientation="portrait" ></activity>
+        <activity
+            android:name=".ui.printer.FirmwareUpdateActivity"
+            android:screenOrientation="portrait" ></activity>
+        <activity
+            android:name=".ui.printer.MonitorActivity"
+            android:screenOrientation="portrait" ></activity>
+        <activity
+            android:name=".ui.printer.SingleMonitorActivity"
+            android:screenOrientation="portrait" ></activity>
+        <activity
+            android:name=".ui.printer.MultipleMonitorActivity"
+            android:screenOrientation="portrait" ></activity>
+        <activity
+            android:name=".ui.printer.MainPrinterActivity"
+            android:label="@string/app_title"
+            android:screenOrientation="portrait" >
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+                <action android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED" />
+            </intent-filter>
+            <meta-data android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/device_filter" />
+            <meta-data android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED"
+                android:resource="@xml/accessory_filter" />
+        </activity>
+        <activity
+            android:name=".ui.printer.DiscoveryActivity"
+            android:label="@string/app_title"
+            android:screenOrientation="portrait" >
+        </activity>
+
 
         <!-- Services -->
         <service

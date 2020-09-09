@@ -87,6 +87,7 @@ class OrderFulfillmentFragment : BaseFragment(), OrderFulfillmentContract.View, 
 
     override fun showOrderDetail(order: WCOrderModel, refunds: List<Refund>) {
         // Populate the Order Product List Card
+        var printDataProductList = mutableListOf<String>()
         orderFulfill_products.initView(
                 orderModel = order,
                 orderItems = order.toAppModel().getNonRefundedProducts(refunds),
@@ -94,7 +95,8 @@ class OrderFulfillmentFragment : BaseFragment(), OrderFulfillmentContract.View, 
                 expanded = true,
                 formatCurrencyForDisplay = currencyFormatter.buildBigDecimalFormatter(order.currency),
                 orderListener = null,
-                productListener = this
+                productListener = this,
+                printDataProductList = printDataProductList
         )
 
         // check if product is a virtual product
@@ -107,8 +109,10 @@ class OrderFulfillmentFragment : BaseFragment(), OrderFulfillmentContract.View, 
             orderFulfill_customerInfo.visibility = View.GONE
         } else {
             // Populate the Customer Information Card
+            var printDataCustomerInfo = mutableListOf<String>()
+            var printDataBillingInfo = mutableListOf<String>()
             orderFulfill_customerInfo.visibility = View.VISIBLE
-            orderFulfill_customerInfo.initView(order, true)
+            orderFulfill_customerInfo.initView(order, true, false, printDataCustomerInfo, printDataBillingInfo)
         }
 
         // load shipment tracking card only if product is NOT virtual
@@ -124,11 +128,13 @@ class OrderFulfillmentFragment : BaseFragment(), OrderFulfillmentContract.View, 
      * even if there are no trackings available
      */
     override fun showOrderShipmentTrackings(trackings: List<WCOrderShipmentTrackingModel>) {
+            var printDataShipmentList = mutableListOf<String>()
             orderFulfill_addShipmentTracking.initView(
                     trackings = trackings,
                     uiMessageResolver = uiMessageResolver,
                     isOrderDetail = false,
-                    shipmentTrackingActionListener = this
+                    shipmentTrackingActionListener = this,
+                    printDataShipmentList = printDataShipmentList
             )
             if (orderFulfill_addShipmentTracking.visibility != View.VISIBLE) {
                 WooAnimUtils.scaleIn(orderFulfill_addShipmentTracking, WooAnimUtils.Duration.MEDIUM)

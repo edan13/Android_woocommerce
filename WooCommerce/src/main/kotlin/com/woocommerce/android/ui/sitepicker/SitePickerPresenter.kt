@@ -1,5 +1,4 @@
 package com.woocommerce.android.ui.sitepicker
-
 import com.woocommerce.android.util.WooLog
 import com.woocommerce.android.util.WooLog.T
 import org.greenrobot.eventbus.Subscribe

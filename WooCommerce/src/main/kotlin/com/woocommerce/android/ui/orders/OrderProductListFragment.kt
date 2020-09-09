@@ -48,6 +48,8 @@ class OrderProductListFragment : BaseFragment(), OrderProductListContract.View {
     }
 
     override fun showOrderProducts(order: WCOrderModel, refunds: List<Refund>) {
+
+        var printDataProductList = mutableListOf<String>()
         orderProducts_list.initView(
                 orderModel = order,
                 orderItems = order.toAppModel().getNonRefundedProducts(refunds),
@@ -55,7 +57,8 @@ class OrderProductListFragment : BaseFragment(), OrderProductListContract.View {
                 expanded = true,
                 formatCurrencyForDisplay = currencyFormatter.buildBigDecimalFormatter(order.currency),
                 orderListener = null,
-                productListener = this
+                productListener = this,
+                printDataProductList = printDataProductList
         )
     }
 

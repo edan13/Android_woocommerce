@@ -115,6 +115,15 @@
         android:layout_height="wrap_content"
         app:optionTitle="@string/beta_features"/>
 
+    <View style="@style/Woo.Divider"/>
+
+    <com.woocommerce.android.ui.prefs.WCSettingsOptionValueView
+        android:id="@+id/option_test_printer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:optionTitle="@string/find_printer"/>
+
+    <View style="@style/Woo.Divider"/>
     <!--
         Send Feedback
     -->

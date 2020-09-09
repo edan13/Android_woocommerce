@@ -12,9 +12,12 @@ import com.woocommerce.android.model.Order
 import com.woocommerce.android.tools.ProductImageMap
 import com.woocommerce.android.widgets.AlignedDividerDecoration
 import kotlinx.android.synthetic.main.order_detail_product_list.view.*
+import org.json.JSONArray
 import org.wordpress.android.fluxc.model.WCOrderModel
 import org.wordpress.android.fluxc.network.rest.wpcom.wc.order.CoreOrderStatus
+import java.lang.Exception
 import java.math.BigDecimal
+import java.text.NumberFormat
 
 class OrderDetailProductListView @JvmOverloads constructor(
     ctx: Context,
@@ -47,8 +50,11 @@ class OrderDetailProductListView @JvmOverloads constructor(
         formatCurrencyForDisplay: (BigDecimal) -> String,
         orderListener: OrderActionListener? = null,
         productListener: OrderProductActionListener? = null,
-        listTitle: String? = null
+        listTitle: String? = null,
+        printDataProductList: MutableList<String>
     ) {
+
+        val metaList = jsonParserForMeta(orderModel.lineItems)
         isExpanded = expanded
 
         val viewManager = androidx.recyclerview.widget.LinearLayoutManager(context)
@@ -57,8 +63,79 @@ class OrderDetailProductListView @JvmOverloads constructor(
             productImageMap,
             formatCurrencyForDisplay,
             isExpanded,
-            productListener
+            productListener,
+            metaList
         )
+        val numberFormatter = NumberFormat.getNumberInstance().apply {
+            maximumFractionDigits = 2
+        }
+
+        printDataProductList.clear()
+
+        for(i  in 0 until orderItems.size)
+        {
+            val orderTotal = formatCurrencyForDisplay(orderItems[i].total)
+            val productPrice = formatCurrencyForDisplay(orderItems[i].price)
+
+            var metaString = "\n"
+            if(metaList[i].metaList.size > 0) {
+                for(item in metaList[i].metaList)
+                {
+                    metaString +=  item.key + " " + item.value + "\n"
+                }
+            }
+
+            printDataProductList.add(
+                orderItems[i].name + ": " + numberFormatter.format(orderItems[i].quantity)
+                    + ", "
+                    + context.getString(
+                    R.string.orderdetail_product_lineitem_total_qty_and_price,
+                    orderTotal, orderItems[i].quantity.toString(), productPrice
+                    )
+                    + ", "
+                    + context.getString(
+                    R.string.orderdetail_product_lineitem_sku_value,
+                    orderItems[i].sku
+                    )
+                    + ", Total Tax: "
+                    + formatCurrencyForDisplay(
+                    orderItems[i].totalTax
+                    )
+                    + metaString
+            )
+        }
+
+//        for(item in orderItems)
+//        {
+//            val orderTotal = formatCurrencyForDisplay(item.total)
+//            val productPrice = formatCurrencyForDisplay(item.price)
+//            printDataProductList.add(
+//                item.name + ": " + numberFormatter.format(item.quantity)
+//                    + ", "
+//                    + context.getString(
+//                    R.string.orderdetail_product_lineitem_total_qty_and_price,
+//                    orderTotal, item.quantity.toString(), productPrice
+//                    )
+//                    + ", "
+//                    + context.getString(
+//                    R.string.orderdetail_product_lineitem_sku_value,
+//                    item.sku
+//                    )
+//                    + ", Total Tax: "
+//                    + formatCurrencyForDisplay(
+//                    item.totalTax
+//                    )
+//            )
+
+//            printDataProductList.add(numberFormatter.format(item.quantity))
+//            printDataProductList.add(context.getString(R.string.orderdetail_product_lineitem_sku_value, item.sku))
+//            printDataProductList.add(context.getString(
+//                R.string.orderdetail_product_lineitem_total_qty_and_price,
+//                orderTotal, item.quantity.toString(), productPrice
+//            ))
+//            printDataProductList.add(formatCurrencyForDisplay(item.totalTax))
+//        }
+
 
         productList_lblProduct.text = listTitle ?: if (orderItems.size > 1) {
             context.getString(R.string.orderdetail_product_multiple)
@@ -90,6 +167,45 @@ class OrderDetailProductListView @JvmOverloads constructor(
         }
 
         updateView(orderModel, orderListener)
+    }
+
+    private fun jsonParserForMeta(strJson: String): MutableList<MetaItem>
+    {
+        var metaList = mutableListOf<MetaItem>()
+
+        try{
+            var reader = JSONArray(strJson)
+            for(j in 0 until reader.length())
+            {
+                var jasonObj = reader.getJSONObject(j)
+                val metaItemList = jasonObj.getJSONArray("meta_data")
+                var metaItem = MetaItem()
+                var itemBeanList = mutableListOf<MetaItem.ItemBean>()
+                for (i in 0 until metaItemList.length()) {
+                    val item = metaItemList.getJSONObject(i)
+
+                    val _id = item.getLong("id");
+                    val _key = item.getString("key")
+                    val _value = item.getString("value")
+                    if(_key.contains("<span") || _value.contains("<span"))
+                    {
+                        var itemBean = MetaItem.ItemBean()
+                        itemBean.id = item.getLong("id");
+                        itemBean.key = android.text.Html.fromHtml(item.getString("key")).toString()
+                        itemBean.value = android.text.Html.fromHtml(item.getString("value")).toString()
+                        itemBeanList.add(itemBean)
+                    }
+
+                }
+                metaItem.metaList = itemBeanList
+                metaList.add(metaItem)
+            }
+            return metaList
+        }catch (e: Exception)
+        {
+            metaList.clear()
+            return metaList
+        }
     }
 
     fun updateView(orderModel: WCOrderModel, orderListener: OrderActionListener? = null) {

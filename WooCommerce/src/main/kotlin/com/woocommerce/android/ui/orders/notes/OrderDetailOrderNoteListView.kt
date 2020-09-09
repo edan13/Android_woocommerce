@@ -21,6 +21,9 @@ class OrderDetailOrderNoteListView @JvmOverloads constructor(
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) : MaterialCardView(ctx, attrs, defStyleAttr) {
+
+    private lateinit var printDataNoteList: MutableList<String>
+
     init {
         View.inflate(context, R.layout.order_detail_note_list, this)
     }
@@ -32,8 +35,9 @@ class OrderDetailOrderNoteListView @JvmOverloads constructor(
     private val skeletonView = SkeletonView()
     private lateinit var listener: OrderDetailNoteListener
 
-    fun initView(notes: List<OrderNote>, orderDetailListener: OrderDetailNoteListener) {
+    fun initView(notes: List<OrderNote>, orderDetailListener: OrderDetailNoteListener, printDataNoteList: MutableList<String>) {
         listener = orderDetailListener
+        this.printDataNoteList = printDataNoteList
 
         noteList_addNoteContainer.setOnClickListener {
             AnalyticsTracker.track(Stat.ORDER_DETAIL_ADD_NOTE_BUTTON_TAPPED)
@@ -46,7 +50,11 @@ class OrderDetailOrderNoteListView @JvmOverloads constructor(
             layoutManager = LinearLayoutManager(context)
             adapter = OrderNotesAdapter()
         }
-
+        printDataNoteList.clear()
+        for(item in notes)
+        {
+                printDataNoteList.add(DateFormat.getMediumDateFormat(context).format(item.dateCreated) + "\n" + item.note)
+        }
         updateView(notes)
     }
 
@@ -61,6 +69,7 @@ class OrderDetailOrderNoteListView @JvmOverloads constructor(
     fun updateView(notes: List<OrderNote>) {
         val adapter = notesList_notes.adapter as? OrderNotesAdapter ?: OrderNotesAdapter()
         enableItemAnimator(adapter.itemCount == 0)
+
 
         val notesWithHeaders = addHeaders(notes)
         adapter.setNotes(notesWithHeaders)

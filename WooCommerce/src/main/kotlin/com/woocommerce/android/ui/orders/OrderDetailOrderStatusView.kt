@@ -28,12 +28,18 @@ class OrderDetailOrderStatusView @JvmOverloads constructor(
         fun openOrderStatusSelector()
     }
 
-    fun initView(orderModel: WCOrderModel, orderStatus: WCOrderStatusModel, listener: OrderStatusListener) {
+    fun initView(orderModel: WCOrderModel, orderStatus: WCOrderStatusModel, listener: OrderStatusListener, printDataOrderStatus: MutableList<String>) {
         val dateStr = if (DateUtils.isToday(orderModel.dateCreated)) {
             DateUtils.getTimeString(context, orderModel.dateCreated)
         } else {
             DateUtils.getMediumDateFromString(context, orderModel.dateCreated)
         }
+        printDataOrderStatus.clear()
+        printDataOrderStatus.add(context.getString(
+            R.string.orderdetail_orderstatus_date_and_ordernum,
+            dateStr,
+            orderModel.number
+        ))
         orderStatus_dateAndOrderNum.text = context.getString(
             R.string.orderdetail_orderstatus_date_and_ordernum,
             dateStr,
@@ -41,7 +47,7 @@ class OrderDetailOrderStatusView @JvmOverloads constructor(
         )
 
         orderStatus_name.text = orderModel.getBillingName(context.getString(R.string.orderdetail_customer_name_default))
-
+        printDataOrderStatus.add(orderModel.getBillingName(context.getString(R.string.orderdetail_customer_name_default)))
         orderStatus_orderTags.removeAllViews()
         orderStatus_orderTags.addView(getTagView(orderStatus))
 
@@ -50,6 +56,7 @@ class OrderDetailOrderStatusView @JvmOverloads constructor(
                     Stat.ORDER_DETAIL_ORDER_STATUS_EDIT_BUTTON_TAPPED, mapOf("status" to orderModel.status))
             listener.openOrderStatusSelector()
         }
+        printDataOrderStatus.add(orderModel.status)
     }
 
     fun updateStatus(orderStatus: WCOrderStatusModel) {

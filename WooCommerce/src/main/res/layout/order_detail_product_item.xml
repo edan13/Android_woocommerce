@@ -69,6 +69,8 @@
         app:layout_constraintTop_toBottomOf="@+id/productInfo_sku"
         tools:text="$30.00 ($15.00 x 2)" />
 
+
+
     <com.google.android.material.textview.MaterialTextView
         android:id="@+id/productInfo_lblTax"
         style="@style/Woo.ListItem.Body"
@@ -94,4 +96,16 @@
         app:layout_constraintTop_toBottomOf="@+id/productInfo_totalPaid"
         tools:text="$0.75"
         tools:visibility="visible" />
+
+    <com.google.android.material.textview.MaterialTextView
+        android:id="@+id/productInfo_meta"
+        style="@style/Woo.ListItem.Body"
+        android:textSize="12sp"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"
+        app:layout_constraintEnd_toStartOf="@+id/productInfo_quantity"
+        app:layout_constraintStart_toEndOf="@+id/productInfo_iconFrame"
+        app:layout_constraintTop_toBottomOf="@+id/productInfo_totalTax"
+        tools:text="$30.00 ($15.00 x 2)" />
 </merge>
